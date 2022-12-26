@@ -58,4 +58,4 @@ dkms.conf
 *Debug/
 .vs/
 *.atsln
-
+*.xlsx
