@@ -1,4 +1,5 @@
 ﻿//Δ
+#define F_CPU 4000000
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
@@ -7,15 +8,27 @@
 #define SHIFT_LIGHT		3
 
 #define RPM_CUT_OFF	3500
+const uint16_t ticksCutOff = F_CPU / RPM_CUT_OFF / 30;
 
-uint8_t rpmFlag = 0;
+uint8_t timer0Counter = 0;
+uint16_t ticksCounter = 0;
 
-ISR(INT0_vect) {
-	
+ISR(TIM0_OVF_vect) {
+	if(timer0Counter < 255)
+		timer0Counter++;
 }
 
+ISR(INT0_vect) {
+	asm("cli");
+	
+	ticksCounter = (timer0Counter << 8) + TCNT0;
 
-
+	timer0Counter = 0;
+	TCNT0 = 0;
+	
+	TIFR0 = 0;	// сброс флага прерывания timer0
+	asm("sei");
+}
 
 int main(void) {
 	/* GPIO Settings */
@@ -24,25 +37,26 @@ int main(void) {
    
    
 	/* INT0 Settings */
-/*	00 – Низкий уровень на ножке INT0 или INT1
-	01 – Любое изменение на ножке INT0 или INT1
-	10 – нисходящий фронт на ножке INT0 или INT1
-	11 – восходящий фронт на ножке INT0 или INT1 */
-	MCUCR |= 0<<ISC01 | 1<<ISC00;
+	MCUCR |= 1<<ISC01 | 1<<ISC00;
+	//00 – низкий уровень   01 – любое изменение
+	//10 – нисходящий фронт 11 – восходящий фронт
+	
 	
 	
 	/* TIMER0 Settings */
-	TCCR0B = (1<<CS02)|(0<<CS01)|(1<<CS00);	// установка предделителя (1024) таймера 0
+	TCCR0B = (0<<CS02)|(0<<CS01)|(1<<CS00);	// установка предделителя (0) таймера 0
+	TIMSK0 |= 1<<TOIE0;						// разрешение прерываний по совпадению
 	TCNT0 = 0;								// обнуление счетного регистра таймера 0
-	OCR0A = 2000;							// установка регистра сравнения таймера 0
-	//TIMSK |= (1<<OCIEA);					// разрешение прерываний по совпадению*/
-	
-	
-	
-	
 	
 	asm("sei");
     while (1) {
-		
-    }
+		if(ticksCounter) {
+			if(ticksCounter < ticksCutOff)
+				PORTB |= 1<<RPM_OUTPUT_PIN;
+			else
+				PORTB &= ~(1<<RPM_OUTPUT_PIN);
+			
+			ticksCounter = 0;
+		}
+	}
 }
