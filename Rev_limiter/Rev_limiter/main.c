@@ -97,28 +97,25 @@ int main(void) {
 			if(ticks < ticksCutOff) {
 				uint16_t delta = ticksCutOff - ticks;
 				
-				if(delta < 300)			mapSparkPointer = 6;
-				else if(delta < 600)	mapSparkPointer = 5;
-				else if(delta < 900)	mapSparkPointer = 4;
-				else if(delta < 1200)	mapSparkPointer = 3;
-				else if(delta < 1500)	mapSparkPointer = 2;
-				else if(delta < 1800)	mapSparkPointer = 1;
+				if(delta < 65)			mapSparkPointer = 6;
+				else if(delta < 194)	mapSparkPointer = 5;
+				else if(delta < 386)	mapSparkPointer = 4;
+				else if(delta < 638)	mapSparkPointer = 3;
+				else if(delta < 946)	mapSparkPointer = 2;
+				else if(delta < 1248)	mapSparkPointer = 1;
 				else					mapSparkPointer = 0;
 				
 				shiftLightCounter = shiftLightOff;
-			}	
+				PORTB |= 1<<SHIFT_LIGHT;
+			}
 			else
 				mapSparkPointer = 7;
 			
 			ticksCounter = 0;
 		}
-		
-		
-			
-			if(shiftLightCounter)
-				PORTB |= 1<<SHIFT_LIGHT;
-			else
-				PORTB &= ~(1<<SHIFT_LIGHT);
+
+		if(!shiftLightCounter)
+			PORTB &= ~(1<<SHIFT_LIGHT);
 		
 	}
 }	
