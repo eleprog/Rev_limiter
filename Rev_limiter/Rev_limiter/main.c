@@ -62,30 +62,29 @@ ISR(INT0_vect) {
 }
 
 int main(void) {
-		
 	/* GPIO Settings */
 	DDRB	= 0b011000;
-	PORTB	= 0b000010;
+	PORTB	= 0b000000;
    
 	/* INT0 Settings */
-	MCUCR |= (0<<ISC01) | (1<<ISC00);	// 10 – нисходящий фронт 11 – восходящий фронт
-	GIMSK = 1<<INT0;					// разрешение прерываний INT0*/
+	MCUCR	= 0b01<<ISC00;	// 01 - любое изменение INT0
+	GIMSK	= 1<<INT0;		// разрешение прерываний INT0
 
 	/* TIMER0 Settings */
-	TCCR0B = (0<<CS02)|(0<<CS01)|(1<<CS00);	// установка предделителя (0) таймера 0
-	TIMSK0 |= 1<<TOIE0;						// разрешение прерываний по совпадению
-	TCNT0 = 0;								// обнуление счетного регистра таймера 0
+	TCCR0B	= 0b001<<CS00;	// установка предделителя (0) таймера 0
+	TIMSK0	= 1<<TOIE0;		// разрешение прерываний по совпадению
+	TCNT0	= 0;			// обнуление счетного регистра таймера 0
 	
 	asm("sei");
 	
-	static uint16_t ticksArr[4] = {0,0,0,0};
-	static uint32_t	ticksPerRotation = 0;
+	
+	static uint16_t ticksArr[4] = {0xFFFF,0xFFFF,0xFFFF,0xFFFF};
+	static uint32_t	ticksPerRotation = 0x3FFFC;
 	static uint8_t ticksArrCounter = 0;
 	
     while (1) {
-		// Обработчик нового значения ticksCounter
+
 		if(ticksCounter) {
-			
 			if(++ticksArrCounter > 3)
 				ticksArrCounter = 0;
 				
@@ -115,19 +114,7 @@ int main(void) {
 		}
 
 		if(!shiftLightCounter)
-			PORTB &= ~(1<<SHIFT_LIGHT);
-		
+			PORTB &= ~(1<<SHIFT_LIGHT);	
 	}
 }	
-
-
-
-
-
-
-
-
-		//if(shiftLightCounter)
-		//PORTB |= 1<<SHIFT_LIGHT;
-		//else
 		
