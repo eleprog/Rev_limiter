@@ -15,6 +15,7 @@ volatile uint16_t ticksCounter = 0;
 const uint16_t shiftLightOff = F_CPU / 1000 * SHIFT_LIGHT_OFF_DELAY / 256;
 volatile uint16_t shiftLightCounter = 0;
 
+#define TICKS_CUT_OFF_STEP 300;
 
 volatile uint8_t mapSparkPointer = 7;
 uint8_t mapSpark[] = {
@@ -28,7 +29,7 @@ uint8_t mapSpark[] = {
 	0b1111111};
 
 
-static uint8_t timer0Counter = 0;
+volatile static uint8_t timer0Counter = 0;
 ISR(TIM0_OVF_vect) {
 	if(timer0Counter < 255)
 		timer0Counter++;
@@ -46,18 +47,16 @@ ISR(INT0_vect) {
 		
 		if(mapSpark[mapSparkPointer] & mapMask)
 			PORTB |= 1<<RPM_OUTPUT_PIN;
-		
+			
 		mapMask <<= 1;
-		
 		if(mapMask == 0b10000000)
 			mapMask = 1;
 		
 		ticksCounter = (timer0Counter << 8) + tmp;
 		
 		timer0Counter = 0;
-		TIFR0 = 0;	// сброс флага прерывания timer0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	}
-	
+		TIFR0 |= 1<<TOV0;	// сброс флага OVF timer0
+	}	
 	else
 		PORTB &= ~(1<<RPM_OUTPUT_PIN);
 }
@@ -79,20 +78,59 @@ int main(void) {
 	
 	asm("sei");
 	
+	static uint16_t ticksArr[4] = {0,0,0,0};
+	static uint32_t	ticksPerRotation = 0;
+	static uint8_t ticksArrCounter = 0;
+	
     while (1) {
+		// Обработчик нового значения ticksCounter
 		if(ticksCounter) {
-			if(ticksCounter > ticksCutOff)
-				mapSparkPointer = 7;
-			else {
-				mapSparkPointer = 3;
+			
+			if(++ticksArrCounter > 3)
+				ticksArrCounter = 0;
+				
+			ticksPerRotation -= ticksArr[ticksArrCounter];
+			ticksPerRotation += ticksCounter;
+			ticksArr[ticksArrCounter] = ticksCounter;
+					
+			uint16_t ticks = ticksPerRotation / 4;
+			if(ticks < ticksCutOff) {
+				uint16_t delta = ticksCutOff - ticks;
+				
+				if(delta < 300)			mapSparkPointer = 6;
+				else if(delta < 600)	mapSparkPointer = 5;
+				else if(delta < 900)	mapSparkPointer = 4;
+				else if(delta < 1200)	mapSparkPointer = 3;
+				else if(delta < 1500)	mapSparkPointer = 2;
+				else if(delta < 1800)	mapSparkPointer = 1;
+				else					mapSparkPointer = 0;
+				
 				shiftLightCounter = shiftLightOff;
-			}
+			}	
+			else
+				mapSparkPointer = 7;
+			
 			ticksCounter = 0;
 		}
 		
+		
+			
+			if(shiftLightCounter)
+				PORTB |= 1<<SHIFT_LIGHT;
+			else
+				PORTB &= ~(1<<SHIFT_LIGHT);
+		
+	}
+}	
+
+
+
+
+
+
+
+
 		//if(shiftLightCounter)
 		//PORTB |= 1<<SHIFT_LIGHT;
 		//else
-		//PORTB &= ~(1<<SHIFT_LIGHT);
-	}
-}
+		
