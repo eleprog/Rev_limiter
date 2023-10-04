@@ -5,9 +5,11 @@
 
 #define RPM_INPUT_PIN	1
 #define RPM_OUTPUT_PIN	4
-#define SHIFT_LIGHT		3
 
-#define RPM_CUT_OFF		4500
+#define SHIFT_LIGHT_PIN	3
+#define BUTTON_PIN		2
+
+#define RPM_CUT_OFF		4000
 const uint16_t ticksCutOff = F_CPU / RPM_CUT_OFF * 30;
 volatile uint16_t ticksCounter = 0;
 
@@ -30,6 +32,7 @@ uint8_t mapSpark[] = {
 
 
 volatile static uint8_t timer0Counter = 0;
+
 ISR(TIM0_OVF_vect) {
 	if(timer0Counter < 255)
 		timer0Counter++;
@@ -41,29 +44,32 @@ ISR(TIM0_OVF_vect) {
 ISR(INT0_vect) {
 	static uint8_t mapMask = 1;
 	
-	if(PINB & 1<<RPM_INPUT_PIN) {
+	if(PINB & 1<<RPM_INPUT_PIN) 
+		PORTB &= ~(1<<RPM_OUTPUT_PIN);
+				
+	else {
 		uint8_t tmp = TCNT0;
 		TCNT0 = 0;
 		
 		if(mapSpark[mapSparkPointer] & mapMask)
 			PORTB |= 1<<RPM_OUTPUT_PIN;
-			
+		
 		mapMask <<= 1;
 		if(mapMask == 0b10000000)
-			mapMask = 1;
+		mapMask = 1;
 		
 		ticksCounter = (timer0Counter << 8) + tmp;
 		
 		timer0Counter = 0;
 		TIFR0 |= 1<<TOV0;	// сброс флага OVF timer0
-	}	
-	else
-		PORTB &= ~(1<<RPM_OUTPUT_PIN);
+	}
+	
+		
 }
 
 int main(void) {
 	/* GPIO Settings */
-	DDRB	= 0b011000;
+	DDRB	= 0b011001;
 	PORTB	= 0b000000;
    
 	/* INT0 Settings */
@@ -83,7 +89,6 @@ int main(void) {
 	static uint8_t ticksArrCounter = 0;
 	
     while (1) {
-
 		if(ticksCounter) {
 			if(++ticksArrCounter > 3)
 				ticksArrCounter = 0;
@@ -96,16 +101,16 @@ int main(void) {
 			if(ticks < ticksCutOff) {
 				uint16_t delta = ticksCutOff - ticks;
 				
-				if(delta < 65)			mapSparkPointer = 6;
-				else if(delta < 194)	mapSparkPointer = 5;
-				else if(delta < 386)	mapSparkPointer = 4;
-				else if(delta < 638)	mapSparkPointer = 3;
-				else if(delta < 946)	mapSparkPointer = 2;
-				else if(delta < 1248)	mapSparkPointer = 1;
+				if(delta < 82)			mapSparkPointer = 6;
+				else if(delta < 246)	mapSparkPointer = 5;
+				else if(delta < 488)	mapSparkPointer = 4;
+				else if(delta < 805)	mapSparkPointer = 3;
+				else if(delta < 1193)	mapSparkPointer = 2;
+				else if(delta < 1571)	mapSparkPointer = 1;
 				else					mapSparkPointer = 0;
 				
 				shiftLightCounter = shiftLightOff;
-				PORTB |= 1<<SHIFT_LIGHT;
+				PORTB |= 1<<SHIFT_LIGHT_PIN;
 			}
 			else
 				mapSparkPointer = 7;
@@ -114,7 +119,9 @@ int main(void) {
 		}
 
 		if(!shiftLightCounter)
-			PORTB &= ~(1<<SHIFT_LIGHT);	
+			PORTB &= ~(1<<SHIFT_LIGHT_PIN);
+			
+			
 	}
 }	
 		
